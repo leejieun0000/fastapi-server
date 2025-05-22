@@ -22,8 +22,7 @@ def root():
 
 @app.get("/heatmap")
 def get_heatmap():
-    # ✅ 절대 경로로 파일 접근 (파일 경로를 정확히 지정)
-    file_path = Path("D:/fastapi_project/predictions_test.json")
+    file_path = Path("predictions_test.json")
 
     if not file_path.exists():
         return {"status": "error", "message": f"{file_path} 파일이 존재하지 않습니다."}
