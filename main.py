@@ -15,6 +15,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Supabase 설정
+SUPABASE_URL = "https://itadfihnzqpzndktlggf.supabase.co"
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml0YWRmaWhuenFwem5ka3RsZ2dmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgwNzgyMjMsImV4cCI6MjA2MzY1NDIyM30.4uMjgEdIdggzSyfZGCc0m3mRYImZsuVnupsn0LdRI50"
+BUCKET_NAME = "predictions"
+
 @app.get("/")
 def root():
     return {"message": "FastAPI 서버 작동 중"}
@@ -22,28 +27,40 @@ def root():
 @app.get("/heatmap")
 def get_latest_prediction():
     try:
-        # 현재 디렉토리에서 predictions_숫자.json 형식의 파일 찾기
-        candidates = list(Path(".").glob("predictions_*.json"))
+        # Supabase에서 파일 리스트 가져오기
+        list_url = f"{SUPABASE_URL}/storage/v1/object/list/{BUCKET_NAME}"
+        headers = {
+            "apikey": SUPABASE_KEY,
+            "Authorization": f"Bearer {SUPABASE_KEY}"
+        }
+        res = requests.get(list_url, headers=headers)
+        if res.status_code != 200:
+            return {"status": "error", "message": "Supabase 파일 목록을 불러올 수 없습니다."}
 
-        if not candidates:
-            return {"status": "error", "message": "예측 파일이 존재하지 않습니다."}
+        files: List[dict] = res.json()
+        if not files:
+            return {"status": "error", "message": "저장된 예측 파일이 없습니다."}
 
-        # 숫자를 기준으로 정렬해서 가장 큰 값 찾기
+        # 가장 숫자가 큰 predictions_숫자.json 파일 선택
         def extract_number(file):
             try:
-                return int(file.stem.split("_")[1])
+                return int(file["name"].split("_")[1].split(".")[0])
             except:
-                return -1  # 숫자 못 뽑으면 제외
+                return -1
 
-        candidates = sorted(candidates, key=extract_number, reverse=True)
-        target_file = candidates[0]
+        files.sort(key=extract_number, reverse=True)
+        latest_file = files[0]["name"]
 
-        with open(target_file, "r", encoding="utf-8") as f:
-            predictions = json.load(f)  # 📌 JSON으로 읽기
+        # 해당 파일의 내용 가져오기
+        file_url = f"{SUPABASE_URL}/storage/v1/object/public/{BUCKET_NAME}/{latest_file}"
+        data_res = requests.get(file_url)
+        if data_res.status_code != 200:
+            return {"status": "error", "message": "예측 파일을 불러오지 못했습니다."}
 
+        predictions = data_res.json()
         return {
             "status": "ok",
-            "file": target_file.name,
+            "file": latest_file,
             "predictions": predictions
         }
 
@@ -51,20 +68,27 @@ def get_latest_prediction():
         return {"status": "error", "message": str(e)}
 
 
-# ✅ 모델이 파일명 지정해서 업로드하는 POST API
-@app.post("/heatmap")
-async def upload_heatmap(request: Request):
+@app.post("/upload-to-supabase/")
+async def upload_json_to_supabase(file: UploadFile = File(...)):
     try:
-        filename = request.headers.get("X-Filename")
-        if not filename:
-            return {"status": "error", "message": "X-Filename 헤더가 없습니다."}
+        # 업로드할 경로 및 헤더 구성
+        now = datetime.utcnow().strftime("%Y%m%d_%H%M")
+        filename = f"predictions_{now}.json"
+        url = f"{SUPABASE_URL}/storage/v1/object/{BUCKET_NAME}/{filename}"
+        headers = {
+            "apikey": SUPABASE_KEY,
+            "Authorization": f"Bearer {SUPABASE_KEY}",
+            "Content-Type": "application/json"
+        }
 
-        data = await request.json()
+        # 파일 읽어서 업로드
+        contents = await file.read()
+        res = requests.post(url, headers=headers, data=contents)
 
-        file_path = Path(filename)
-        with open(file_path, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
+        if res.status_code in (200, 201):
+            return {"status": "ok", "file": filename, "message": "Supabase 업로드 성공!"}
+        else:
+            return {"status": "error", "code": res.status_code, "detail": res.text}
 
-        return {"status": "ok", "message": f"{filename} 업로드 완료!"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
