@@ -6,6 +6,9 @@ from fastapi import UploadFile, File
 from typing import List
 import requests
 import json
+import os
+
+
 
 app = FastAPI()
 
@@ -22,6 +25,14 @@ app.add_middleware(
 SUPABASE_URL = "https://itadfihnzqpzndktlggf.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml0YWRmaWhuenFwem5ka3RsZ2dmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgwNzgyMjMsImV4cCI6MjA2MzY1NDIyM30.4uMjgEdIdggzSyfZGCc0m3mRYImZsuVnupsn0LdRI50"
 BUCKET_NAME = "predictions"
+
+@app.get("/debug-env")
+def debug_env():
+    return {
+        "SUPABASE_URL": os.getenv("SUPABASE_URL"),
+        "SUPABASE_KEY": os.getenv("SUPABASE_KEY")[:10] if os.getenv("SUPABASE_KEY") else None,
+        "BUCKET_NAME": os.getenv("BUCKET_NAME")
+    }
 
 @app.get("/")
 def root():
