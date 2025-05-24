@@ -41,53 +41,40 @@ def root():
 @app.get("/heatmap")
 def get_latest_prediction():
     try:
-        # Supabase에서 파일 리스트 가져오기
-        list_url = f"{SUPABASE_URL}/storage/v1/object/list/{BUCKET_NAME}"
+        list_url = f"{SUPABASE_URL}/storage/v1/bucket/{BUCKET_NAME}/o"
         headers = {
-            "apikey": SUPABASE_KEY,
             "Authorization": f"Bearer {SUPABASE_KEY}",
-            "x-project-ref": "itadfihnzqpzndktlggf",
-            "Content-Type": "application/json"
+            "apikey": SUPABASE_KEY
+        }
+        params = {
+            "limit": 100,
+            "offset": 0,
+            "sortBy": "name",
+            "order": "desc"
         }
 
-        # 💡 디버깅 로그
-        print("📡 list_url:", list_url)
-        print("📡 headers:", {k: (v[:8] + "..." if k == "Authorization" else v) for k, v in headers.items()})
-
-        res = requests.get(list_url, headers=headers)
-
-        print("📥 status code:", res.status_code)
-        print("📥 response text:", res.text)
+        res = requests.get(list_url, headers=headers, params=params)
+        print("📥 status:", res.status_code)
+        print("📥 response:", res.text)
 
         if res.status_code != 200:
             return {"status": "error", "message": "Supabase 파일 목록을 불러올 수 없습니다."}
 
-        files: List[dict] = res.json()
-
-        # 💡 응답 타입 확인
+        files = res.json()
         if not isinstance(files, list):
             return {"status": "error", "message": f"예상과 다른 응답 형식: {files}"}
-
         if not files:
-            return {"status": "error", "message": "저장된 예측 파일이 없습니다."}
+            return {"status": "error", "message": "예측 파일이 없습니다."}
 
-        # 가장 숫자가 큰 predictions_숫자.json 파일 선택
-        def extract_number(file):
-            try:
-                return int(file["name"].split("_")[1].split(".")[0])
-            except:
-                return -1
-
-        files.sort(key=extract_number, reverse=True)
+        files.sort(key=lambda f: int(f["name"].split("_")[1].split(".")[0]), reverse=True)
         latest_file = files[0]["name"]
 
-        # 해당 파일의 내용 가져오기
         file_url = f"{SUPABASE_URL}/storage/v1/object/public/{BUCKET_NAME}/{latest_file}"
-        data_res = requests.get(file_url)
-        if data_res.status_code != 200:
+        file_res = requests.get(file_url)
+        if file_res.status_code != 200:
             return {"status": "error", "message": "예측 파일을 불러오지 못했습니다."}
 
-        predictions = data_res.json()
+        predictions = file_res.json()
         return {
             "status": "ok",
             "file": latest_file,
