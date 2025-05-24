@@ -36,11 +36,21 @@ def get_latest_prediction():
             "apikey": SUPABASE_KEY,
             "Authorization": f"Bearer {SUPABASE_KEY}"
         }
+
+        # 💡 디버깅 로그
+        print("📡 list_url:", list_url)
+        print("📡 headers:", {k: (v[:8] + "..." if k == "Authorization" else v) for k, v in headers.items()})
+
         res = requests.get(list_url, headers=headers)
         if res.status_code != 200:
             return {"status": "error", "message": "Supabase 파일 목록을 불러올 수 없습니다."}
 
         files: List[dict] = res.json()
+
+        # 💡 응답 타입 확인
+        if not isinstance(files, list):
+            return {"status": "error", "message": f"예상과 다른 응답 형식: {files}"}
+
         if not files:
             return {"status": "error", "message": "저장된 예측 파일이 없습니다."}
 
