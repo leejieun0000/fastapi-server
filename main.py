@@ -42,6 +42,10 @@ def get_latest_prediction():
         print("📡 headers:", {k: (v[:8] + "..." if k == "Authorization" else v) for k, v in headers.items()})
 
         res = requests.get(list_url, headers=headers)
+
+        print("📥 status code:", res.status_code)
+        print("📥 response text:", res.text)
+
         if res.status_code != 200:
             return {"status": "error", "message": "Supabase 파일 목록을 불러올 수 없습니다."}
 
