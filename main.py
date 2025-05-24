@@ -1,9 +1,8 @@
-# main.py
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-import json
-import os
 from pathlib import Path
+from datetime import datetime, timedelta
+import json
 
 app = FastAPI()
 
@@ -21,18 +20,51 @@ def root():
     return {"message": "FastAPI 서버 작동 중"}
 
 @app.get("/heatmap")
-def get_heatmap():
-    file_path = Path("predictions_test.json")
-
-    if not file_path.exists():
-        return {"status": "error", "message": f"{file_path} 파일이 존재하지 않습니다."}
-
+def get_latest_prediction():
     try:
-        with open(file_path, "r", encoding="utf-8") as f:
-            predictions = json.load(f)
+        # 현재 디렉토리에서 predictions_숫자.json 형식의 파일 찾기
+        candidates = list(Path(".").glob("predictions_*.json"))
+
+        if not candidates:
+            return {"status": "error", "message": "예측 파일이 존재하지 않습니다."}
+
+        # 숫자를 기준으로 정렬해서 가장 큰 값 찾기
+        def extract_number(file):
+            try:
+                return int(file.stem.split("_")[1])
+            except:
+                return -1  # 숫자 못 뽑으면 제외
+
+        candidates = sorted(candidates, key=extract_number, reverse=True)
+        target_file = candidates[0]
+
+        with open(target_file, "r", encoding="utf-8") as f:
+            predictions = json.load(f)  # 📌 JSON으로 읽기
+
         return {
             "status": "ok",
+            "file": target_file.name,
             "predictions": predictions
         }
+
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+# ✅ 모델이 파일명 지정해서 업로드하는 POST API
+@app.post("/heatmap")
+async def upload_heatmap(request: Request):
+    try:
+        filename = request.headers.get("X-Filename")
+        if not filename:
+            return {"status": "error", "message": "X-Filename 헤더가 없습니다."}
+
+        data = await request.json()
+
+        file_path = Path(filename)
+        with open(file_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+
+        return {"status": "ok", "message": f"{filename} 업로드 완료!"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
