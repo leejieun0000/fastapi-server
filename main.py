@@ -45,8 +45,8 @@ def get_latest_prediction():
         list_url = f"{SUPABASE_URL}/storage/v1/object/list/{BUCKET_NAME}"
         headers = {
             "apikey": SUPABASE_KEY,
-            "Authorization": f"Bearer {SUPABASE_KEY}"
-            "x-project-ref": "itadfihnzqpzndktlggf",  # ✅ 핵심
+            "Authorization": f"Bearer {SUPABASE_KEY}",
+            "x-project-ref": "itadfihnzqpzndktlggf",
             "Content-Type": "application/json"
         }
 
