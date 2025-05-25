@@ -36,7 +36,12 @@ def get_latest_prediction():
             "apikey": SUPABASE_KEY,
             "Authorization": f"Bearer {SUPABASE_KEY}"
         }
-        res = requests.post(list_url, headers=headers, json={})
+        res = requests.post(
+            list_url,
+            headers=headers,
+            json={"prefix": ""}  # ← 반드시 포함!
+        )
+
         print("📦 상태 코드:", res.status_code)
         print("📦 응답:", res.text)
 
