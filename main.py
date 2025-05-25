@@ -31,12 +31,15 @@ def root():
 def get_latest_prediction():
     try:
         # Supabase에서 파일 리스트 가져오기
-        list_url = f"{SUPABASE_URL}/storage/v1/object/public/{BUCKET_NAME}"
+        list_url = f"{SUPABASE_URL}/storage/v1/object/list/{BUCKET_NAME}"
         headers = {
             "apikey": SUPABASE_KEY,
             "Authorization": f"Bearer {SUPABASE_KEY}"
         }
-        res = requests.get(list_url, headers=headers)
+        res = requests.post(list_url, headers=headers, json={})
+        print("📦 상태 코드:", res.status_code)
+        print("📦 응답:", res.text)
+
         if res.status_code != 200:
             return {"status": "error", "message": "Supabase 파일 목록을 불러올 수 없습니다."}
 
