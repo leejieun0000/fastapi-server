@@ -30,7 +30,18 @@ def root():
 @app.get("/heatmap")
 def get_latest_prediction():
     try:
-        # Supabase에서 파일 리스트 가져오기
+        # 현재 시각을 UTC 기준으로 가져와 10분 단위로 올림
+        now = datetime.utcnow()
+        rounded_minute = (now.minute + 9) // 10 * 10
+        if rounded_minute == 60:
+            now += timedelta(hours=1)
+            rounded_minute = 0
+        target_time = now.replace(minute=rounded_minute, second=0, microsecond=0)
+        target_filename = f"predictions_{target_time.strftime('%y%m%d_%H%M')}.json"
+
+        print("🔍 요청 대상 파일:", target_filename)
+
+        # Supabase에서 파일 목록 가져오기
         list_url = f"{SUPABASE_URL}/storage/v1/object/list/{BUCKET_NAME}"
         headers = {
             "apikey": SUPABASE_KEY,
@@ -42,28 +53,17 @@ def get_latest_prediction():
             json={"prefix": ""}  # ← 반드시 포함!
         )
 
-        print("📦 상태 코드:", res.status_code)
-        print("📦 응답:", res.text)
-
         if res.status_code != 200:
             return {"status": "error", "message": "Supabase 파일 목록을 불러올 수 없습니다."}
 
         files: List[dict] = res.json()
-        if not files:
-            return {"status": "error", "message": "저장된 예측 파일이 없습니다."}
+        filenames = [file["name"] for file in files]
 
-        # 가장 숫자가 큰 predictions_숫자.json 파일 선택
-        def extract_number(file):
-            try:
-                return int(file["name"].split("_")[1].split(".")[0])
-            except:
-                return -1
-
-        files.sort(key=extract_number, reverse=True)
-        latest_file = files[0]["name"]
+        if target_filename not in filenames:
+            return {"status": "error", "message": f"{target_filename} 파일이 존재하지 않습니다."}
 
         # 해당 파일의 내용 가져오기
-        file_url = f"{SUPABASE_URL}/storage/v1/object/public/{BUCKET_NAME}/{latest_file}"
+        file_url = f"{SUPABASE_URL}/storage/v1/object/public/{BUCKET_NAME}/{target_filename}"
         data_res = requests.get(file_url)
         if data_res.status_code != 200:
             return {"status": "error", "message": "예측 파일을 불러오지 못했습니다."}
@@ -71,12 +71,13 @@ def get_latest_prediction():
         predictions = data_res.json()
         return {
             "status": "ok",
-            "file": latest_file,
+            "file": target_filename,
             "predictions": predictions
         }
 
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
 
 
 @app.post("/upload-to-supabase/")
