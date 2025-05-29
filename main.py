@@ -31,7 +31,7 @@ def root():
 def get_latest_prediction():
     try:
         # 현재 시각을 UTC 기준으로 가져와 10분 단위로 올림
-        now = datetime.utcnow()
+        now = datetime.now(timezone(timedelta(hours=9)))
         rounded_minute = (now.minute + 9) // 10 * 10
         if rounded_minute == 60:
             now += timedelta(hours=1)
