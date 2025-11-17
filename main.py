@@ -19,8 +19,8 @@ app.add_middleware(
 )
 
 # Supabase 설정
-SUPABASE_URL = "https://itadfihnzqpzndktlggf.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml0YWRmaWhuenFwem5ka3RsZ2dmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgwNzgyMjMsImV4cCI6MjA2MzY1NDIyM30.4uMjgEdIdggzSyfZGCc0m3mRYImZsuVnupsn0LdRI50"
+SUPABASE_URL = "https://wdcifdkjxlblbxxupvjk.supabase.co"
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndkY2lmZGtqeGxibGJ4eHVwdmprIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMzNTQzOTQsImV4cCI6MjA3ODkzMDM5NH0.PrDqBg35G2nsCDfPEW-1SB1lRniWfyI-mUmq2q8-hgU"
 BUCKET_NAME = "predictions"
 
 @app.get("/")
