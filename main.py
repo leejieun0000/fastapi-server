@@ -30,16 +30,16 @@ def root():
 @app.get("/heatmap")
 def get_latest_prediction():
     try:
-        # 현재 시각을 UTC 기준으로 가져와 10분 단위로 올림
-        now = datetime.now(timezone(timedelta(hours=9)))
-        rounded_minute = (now.minute + 9) // 10 * 10
-        if rounded_minute == 60:
-            now += timedelta(hours=1)
-            rounded_minute = 0
-        target_time = now.replace(minute=rounded_minute, second=0, microsecond=0)
-        target_filename = f"predictions_{target_time.strftime('%y%m%d_%H%M')}.json"
+        # # 현재 시각을 UTC 기준으로 가져와 10분 단위로 올림
+        # now = datetime.now(timezone(timedelta(hours=9)))
+        # rounded_minute = (now.minute + 9) // 10 * 10
+        # if rounded_minute == 60:
+        #     now += timedelta(hours=1)
+        #     rounded_minute = 0
+        # target_time = now.replace(minute=rounded_minute, second=0, microsecond=0)
+        # target_filename = f"predictions_{target_time.strftime('%y%m%d_%H%M')}.json"
 
-        print("🔍 요청 대상 파일:", target_filename)
+        # print("🔍 요청 대상 파일:", target_filename)
 
         # Supabase에서 파일 목록 가져오기
         list_url = f"{SUPABASE_URL}/storage/v1/object/list/{BUCKET_NAME}"
@@ -57,10 +57,19 @@ def get_latest_prediction():
             return {"status": "error", "message": "Supabase 파일 목록을 불러올 수 없습니다."}
 
         files: List[dict] = res.json()
-        filenames = [file["name"] for file in files]
 
-        if target_filename not in filenames:
-            return {"status": "error", "message": f"{target_filename} 파일이 존재하지 않습니다."}
+        if not files or files[0]['name'] == '.emptyFolderPlaceholder':
+            return {"status": "error", "message": "Supabase 버킷에 유효한 예측 파일이 존재하지 않습니다."}
+
+            # 파일 이름(시간 정보)을 기준으로 내림차순 정렬하여 가장 최신 파일을 선택합니다.
+        files.sort(key=lambda x: x['name'], reverse=True)
+        target_filename = files[0]["name"]
+
+        print("🔍 요청 대상 파일 (최신 파일 선택):", target_filename)
+        # filenames = [file["name"] for file in files]
+        #
+        # if target_filename not in filenames:
+        #     return {"status": "error", "message": f"{target_filename} 파일이 존재하지 않습니다."}
 
         # 해당 파일의 내용 가져오기
         file_url = f"{SUPABASE_URL}/storage/v1/object/public/{BUCKET_NAME}/{target_filename}"
