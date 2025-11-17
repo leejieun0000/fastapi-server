@@ -27,11 +27,19 @@ BUCKET_NAME = "predictions"
 def root():
     return {"message": "FastAPI 서버 작동 중"}
 
-
 @app.get("/heatmap")
 def get_latest_prediction():
     try:
-        print("🔍 Supabase 파일 목록 조회 중...")
+        # 현재 시각을 UTC 기준으로 가져와 10분 단위로 올림
+        now = datetime.now(timezone(timedelta(hours=9)))
+        rounded_minute = (now.minute + 9) // 10 * 10
+        if rounded_minute == 60:
+            now += timedelta(hours=1)
+            rounded_minute = 0
+        target_time = now.replace(minute=rounded_minute, second=0, microsecond=0)
+        target_filename = f"predictions_{target_time.strftime('%y%m%d_%H%M')}.json"
+
+        print("🔍 요청 대상 파일:", target_filename)
 
         # Supabase에서 파일 목록 가져오기
         list_url = f"{SUPABASE_URL}/storage/v1/object/list/{BUCKET_NAME}"
@@ -42,31 +50,23 @@ def get_latest_prediction():
         res = requests.post(
             list_url,
             headers=headers,
-            json={"prefix": ""}
+            json={"prefix": ""}  # ← 반드시 포함!
         )
 
         if res.status_code != 200:
             return {"status": "error", "message": "Supabase 파일 목록을 불러올 수 없습니다."}
 
         files: List[dict] = res.json()
+        filenames = [file["name"] for file in files]
 
-        # 파일이 비어있는지 확인
-        if not files or files[0]['name'] == '.emptyFolderPlaceholder':
-            return {"status": "error", "message": "Supabase 버킷에 예측 파일이 존재하지 않습니다."}
-
-        # ✅ (파일이 하나만 있다는 전제 하에) 첫 번째 파일을 target_filename으로 지정합니다.
-        #    파일 이름의 정렬 순서와 관계없이 존재하는 파일을 무조건 가져옵니다.
-        target_filename = files[0]["name"]
-
-        print(f"✅ Supabase에서 가져온 파일: {target_filename}")
+        if target_filename not in filenames:
+            return {"status": "error", "message": f"{target_filename} 파일이 존재하지 않습니다."}
 
         # 해당 파일의 내용 가져오기
         file_url = f"{SUPABASE_URL}/storage/v1/object/public/{BUCKET_NAME}/{target_filename}"
         data_res = requests.get(file_url)
-
         if data_res.status_code != 200:
-            # 파일을 찾았으나 다운로드에 실패했을 경우
-            return {"status": "error", "message": f"파일({target_filename})을 불러오지 못했습니다. (HTTP {data_res.status_code})"}
+            return {"status": "error", "message": "예측 파일을 불러오지 못했습니다."}
 
         predictions = data_res.json()
         return {
